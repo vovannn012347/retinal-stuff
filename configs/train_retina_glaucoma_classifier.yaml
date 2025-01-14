@@ -1,0 +1,49 @@
+random_seed: False # options: False | <int>
+# dataloading
+
+dataset_path_correct: 'C:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-stuff-classifier/nerves_defined_output_1'
+dataset_path_iccorrect: 'C:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-stuff-classifier/nerves_defined_output_1_iccorect'
+label_folder_path: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-stuff-classifier/batch_test_retina_nerve_definitor_labels'
+
+data_labels_ordered: ['glaucoma', 'atrophy', 'valid_image']
+data_label_correct: 'valid_image'
+
+scan_subdirs: false  # Are the images organized in subfolders?
+random_crop: False  # Set to false when dataset is 'celebahq', meaning only resize the images to img_shapes, instead of crop img_shapes from a larger raw image. This is useful when you train on images with different resolutions like places2. In these cases, please set random_crop to true.
+batch_size: 4
+k_folds: 20
+num_workers: 0
+
+#image sizing
+img_shapes: [576, 576, 3]
+
+# training
+# resume training
+# Empty to start new training
+model_restore: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-stuff-classifier/checkpoints/states.pth'
+#model_restore: ''
+
+# training
+log_dir: 'C:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-stuff-classifier/checkpoints/logs' # logging folder
+checkpoint_dir: 'C:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-stuff-classifier/checkpoints' # Checkpoint folder
+
+use_cuda_if_available: True
+
+opt_lr: 0.0001    # lr for Adam optimizer (generator)
+opt_beta1: 0.9    # beta1 for Adam optimizer (generator)
+opt_beta2: 0.999  # beta2 for Adam optimizer (generator)
+weight_decay: 0 #0.00000001    # regularization weight
+
+max_iters: 1000000 # number of batches to train the models
+
+# if optional: set to False to deactivate
+display_iter: 6           # display dummy processing results
+print_loss: 2           # write losses to console and tensorboard
+print_iter: 4           # write images to log
+save_checkpoint_iter: 2   # save checkpoint file and overwrite last one
+save_imgs_to_disc_iter: 40 # (optional) save image grids in checkpoint folder
+save_cp_backup_iter: 5000   # (optional) save checkpoint file named states_{n_iter}.pth
+
+# loss
+gan_loss: 'wbce' # options: 'wbce', 'avg'
+gan_loss_alpha: 1.

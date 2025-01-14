@@ -1,0 +1,59 @@
+random_seed: False # options: False | <int>
+# dataloading
+dataset_path: 'C:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-detection/training-images'
+mask_folder_path: 'C:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-detection/training-masks'
+
+scan_subdirs: false  # Are the images organized in subfolders?
+random_crop: False  # Set to false when dataset is 'celebahq', meaning only resize the images to img_shapes, instead of crop img_shapes from a larger raw image. This is useful when you train on images with different resolutions like places2. In these cases, please set random_crop to true.
+batch_size: 4
+num_workers: 0
+
+#image and stuff sizing
+#image_stride = 32
+#img_target_size_multiple =  image_stride*2 = 64
+#img_patch_shapes =  image_stride*3 = 72
+#img_patch_size =  img_target_size_multiple*10 = 640
+img_stride: [32, 32]
+img_patch_shapes: [96, 96]
+img_shapes: [576, 576, 3]
+
+# training
+# resume training
+# Empty to start new training
+model_restore: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-detection/checkpoints/states.pth'
+#model_restore: 'checkpoints/celebahq/model_exp0/states.pth'
+
+# training
+log_dir: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-detection/checkpoints/logs' # Tensorboard logging folder
+checkpoint_dir: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-detection/checkpoints' # Checkpoint folder
+
+use_cuda_if_available: True
+
+optimizer_lr: 0.00001    # lr for Adam optimizer (generator)
+optimizer_beta1_momentum: 0.9    # beta1 for Adam optimizer (generator)
+optimizer_beta2: 0.999  # beta2 for Adam optimizer (generator)
+weight_decay: 0 #0.0000001    # regularization weight
+
+stage_1_iters: 2000 #stage 1 iterations
+max_iters: 1000000 # number of batches to train the models
+
+# logging
+viz_max_out: 10             # number of images from batch 
+# if optional: set to False to deactivate 
+print_iter: 100             # write losses to console and tensorboard
+save_checkpoint_iter: 100   # save checkpoint file and overwrite last one
+save_imgs_to_disc_iter: 40 # (optional) save image grids in checkpoint folder
+save_cp_backup_iter: 5000   # (optional) save checkpoint file named states_{n_iter}.pth
+
+#img_shapes: [256, 256, 3]
+
+# mask options
+# height: 128
+# width: 128
+# max_delta_height: 32
+# max_delta_width: 32
+# vertical_margin: 0
+# horizontal_margin: 0
+
+# loss
+gan_loss: 'wbce' # options: 'wgbce', 'wbce', 'bce', 'avg'

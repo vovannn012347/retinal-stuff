@@ -1,0 +1,73 @@
+# set '' to start new, otherwise use saved state to resume training
+#
+#generator_model_restore: ''
+generator_model_restore: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-infill/checkpoints/states_gen.pth' # generator states
+retina_model_restore: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-detection/checkpoints/states_2024_09_05.pth' # retina cnn
+
+# dataloading
+dataset_path: 'C:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-detection/training-images'
+scan_subdirs: True  # Are the images organized in subfolders?
+
+random_crop: False  # Set to false when dataset is 'celebahq', meaning only resize the images to img_shapes, instead of crop img_shapes from a larger raw image. This is useful when you train on images with different resolutions like places2. In these cases, please set random_crop to true.
+random_transforms: True
+batch_size: 2
+num_workers: 0
+do_innard_testing_image_shots: False
+
+# training
+checkpoint_dir: 'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-infill/checkpoints'
+# save generator result and retina cnn bundles together
+testing_model_save:  'c:/Users/User/PycharmProjects/retinal-stuff/training-data/retina-infill/checkpoints/states_retina_inpaint.pth'
+
+use_cuda_if_available: False
+random_seed: False # options: False | <int>
+
+g_lr: 0.0001    # lr for Adam optimizer (generator)
+g_beta1: 0.5    # beta1 for Adam optimizer (generator)
+g_beta2: 0.999  # beta2 for Adam optimizer (generator)
+
+d_lr: 0.0001    # lr for Adam optimizer (discriminator)
+d_beta1: 0.5    # beta1 for Adam optimizer (discriminator)
+d_beta2: 0.999  # beta2 for Adam optimizer (discriminator)
+
+max_iters: 2000000 # number of batches to train the models
+
+# logging
+# viz_max_out: 10             # number of images from batch
+# if optional: set to False to deactivate 
+print_iter: 20               # write losses to console and tensorboard
+save_checkpoint_iter: 20   # save checkpoint file and overwrite last one
+save_testing_cp_iter: 20   # save testing checkpoint file named states_gen_test.pth
+# save_imgs_to_tb_iter: 100   # (optional) add image grids to tensorboard
+save_imgs_to_disc_iter: 10  # (optional) save image grids in checkpoint folder
+save_cp_backup_iter: 100   # (optional) save checkpoint file named states_{n_iter}.pth
+
+#img_shapes: [256, 256, 3]
+img_stride: [32, 32]
+img_patch_shapes: [96, 96]
+img_shapes: [576, 576, 3]
+
+img_inpaint_shapes: [256, 256]
+
+# mask options
+height: 128
+width: 128
+max_delta_height: 32
+max_delta_width: 32
+vertical_margin: 0
+horizontal_margin: 0
+
+# loss
+gan_loss: 'hinge' # options: 'hinge', 'ls'
+gan_loss_alpha: 0.5
+
+bin_loss: 'wbce' # options: 'wbce', 'bce', 'avg'
+# retina_loss: False
+# bin_retina_loss_alpha: 0.2
+
+# edge_loss: False
+# edge_function: 'sobel' # options:  'sobel', 'prewitt' # do not use 'canny'
+# edge_loss_alpha: 0.2
+
+ae_loss: True
+l1_loss_alpha: 1.

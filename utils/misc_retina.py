@@ -1,13 +1,13 @@
 from PIL import Image
 import torch
-import torch.nn as nn
-import torch.nn.functional as nnF
-import torchvision.transforms as T
-import torchvision.transforms.functional as TF
+import torch.nn.functional as tnnfunc
+import torchvision.transforms as tvtf
 
 import cv2
 import numpy as np
 import yaml
+
+from torchvision.transforms import ToPILImage, ToTensor
 
 try:
     from yaml import CLoader as Loader
@@ -29,6 +29,7 @@ class DictConfig(object):
     def __repr__(self):
         return self.__str__()
 
+
 def get_config(fname):
     with open(fname, 'r') as stream:
         config_dict = yaml.load(stream, Loader)
@@ -43,12 +44,23 @@ def pt_to_image(img):
 def save_nerve_definitor(fname, definitor, optimizer_pass, n_iter, config):
     state_dicts = {'nerve_definitor': definitor.state_dict(),
                    'adam_opt_nerve_definitor': optimizer_pass.state_dict(),
+                   'n_iter': n_iter,
+                   'n_learn_rate': optimizer_pass.param_groups[0]['lr']}
+    torch.save(state_dicts, f"{config.checkpoint_dir}/{fname}")
+    print("Saved state dicts!")
+
+
+def save_nerve_definitor2(fname, definitor, optimizer_pass, scheduler_pass, n_iter, config):
+    state_dicts = {'nerve_definitor': definitor.state_dict(),
+                   'adam_opt_nerve_definitor': optimizer_pass.state_dict(),
+                   'scheduler': scheduler_pass.state_dict(),
                    'n_iter': n_iter}
     torch.save(state_dicts, f"{config.checkpoint_dir}/{fname}")
     print("Saved state dicts!")
 
 
-def save_2_convolution_states(fname, convolution_pass1, convolution_pass2, optimizer_pass1, optimizer_pass2, n_iter, config):
+def save_2_convolution_states(fname, convolution_pass1, convolution_pass2, optimizer_pass1, optimizer_pass2, n_iter,
+                              config):
     state_dicts = {'convolution_pass1': convolution_pass1.state_dict(),
                    'convolution_pass2': convolution_pass2.state_dict(),
                    'adam_opt_pass1': optimizer_pass1.state_dict(),
@@ -72,6 +84,7 @@ def save_nerve_classifier(fname, nerve_classifier_pass, optimizer, n_iter, confi
                    'n_iter': n_iter}
     torch.save(state_dicts, f"{config.checkpoint_dir}/{fname}")
     print("Saved state dicts!")
+
 
 def output_to_img(out):
     out = (out[0].cpu().permute(1, 2, 0) + 1.) * 127.5
@@ -185,15 +198,15 @@ def run_retina_cnn(image_tensor, retina_pass1, retina_pass2, image_patch_size, i
                 temp_mask[:, -1:] = False
 
                 merged_tensor[ch,
-                x_start:x_start + image_patch_size[0],
-                y_start:y_start + image_patch_size[1]][temp_mask] = (
+                              x_start:x_start + image_patch_size[0],
+                              y_start:y_start + image_patch_size[1]][temp_mask] = (
                     reshaped_refolded_patches)[ch, i, j][temp_mask]
 
     return merged_tensor
 
 
 def run_retina_cnn_2(image_tensor, retina_pass1, image_patch_size, image_patch_stride,
-                     device=None, apply_gauss=True):
+                     device=None):
     image_patches_unfolded_pass1 = image_tensor.unfold(1, image_patch_size[0], image_patch_stride[0])
     image_patches_unfolded_pass1 = image_patches_unfolded_pass1.unfold(2, image_patch_size[1], image_patch_stride[1])
     _, mask_unfold_count_h, mask_unfold_count_w, _, _ = image_patches_unfolded_pass1.size()
@@ -224,8 +237,8 @@ def run_retina_cnn_2(image_tensor, retina_pass1, image_patch_size, image_patch_s
             for j in range(reshaped_refolded_patches.size(2)):
                 x_start, y_start = i * image_stride_h, j * image_stride_w
                 gauss_count[ch,
-                x_start:x_start + image_patch_size[0],
-                y_start:y_start + image_patch_size[1]] += gauss_patch
+                            x_start:x_start + image_patch_size[0],
+                            y_start:y_start + image_patch_size[1]] += gauss_patch
 
     for ch in range(reshaped_refolded_patches.size(0)):
         for i in range(reshaped_refolded_patches.size(1)):
@@ -235,11 +248,10 @@ def run_retina_cnn_2(image_tensor, retina_pass1, image_patch_size, image_patch_s
                 # select all values
                 # temp_mask = reshaped_refolded_patches[ch, i, j] > 0.05
 
-                merged_tensor[
-                    ch,
-                    x_start:x_start + image_patch_size[0],
-                    y_start:y_start + image_patch_size[1]] += (
-                            reshaped_refolded_patches[ch, i, j] * gauss_patch)
+                merged_tensor[ch,
+                              x_start:x_start + image_patch_size[0],
+                              y_start:y_start + image_patch_size[1]] += (
+                        reshaped_refolded_patches[ch, i, j] * gauss_patch)
                 # (reshaped_refolded_patches[ch, i, j] * temp_mask * gauss_patch)
 
     merged_tensor /= gauss_count
@@ -256,7 +268,7 @@ def run_retina_cnn_2(image_tensor, retina_pass1, image_patch_size, image_patch_s
     return merged_tensor
 
 
-def magic_wand_mask_selection_batch(image_tensor, upper_multiplier=0.4, lower_multipleir=0.25):    # , debug_dir):
+def magic_wand_mask_selection_batch(image_tensor, upper_multiplier=0.4, lower_multipleir=0.25):  # , debug_dir):
     """ selects retilnal blood vessels from mask via magic wand
 
         Args:
@@ -373,6 +385,7 @@ def magic_wand_mask_selection(image_tensor, upper_multiplier=0.4, lower_multiple
 
     return output_mask
 
+
 def magic_wand_mask_selection_batch_faster(image_tensor, upper_multiplier=0.4, lower_multipleir=0.25):
     # , debug_dir):
     """ selects retilnal blood vessels from mask via magic wand
@@ -443,10 +456,10 @@ def magic_wand_mask_selection_batch_faster(image_tensor, upper_multiplier=0.4, l
                            [0, 1, 0]], dtype=torch.float32,
                           device=image_tensor.device).unsqueeze(0).unsqueeze(0)
 
-    max_iters = int((diff_map.size(2) * diff_map.size(3)) / 4)
+    max_iters = int((masks.size(2) * masks.size(3)) / 4)
 
     for _ in range(max_iters):
-        dilated_mask = nnF.conv2d(masks.float(), kernel, padding=1).bool()
+        dilated_mask = tnnfunc.conv2d(masks.float(), kernel, padding=1).bool()
 
         # Mask update: keep pixels within threshold and add to current mask
         new_masks = dilated_mask & diff_map
@@ -493,6 +506,9 @@ def magic_wand_mask_selection_faster(image_tensor, upper_multiplier=0.4, lower_m
     first_bound_bin_index = int(non_zero_indices[-1].item() * (1 - first_tolerance))
     first_bound = first_bound_bin_index * bin_width
 
+    if first_bound <= 1e-8:
+        return torch.zeros_like(image_tensor)
+
     # part 3: make starting global selection
     mask = image_tensor > first_bound
 
@@ -522,10 +538,10 @@ def magic_wand_mask_selection_faster(image_tensor, upper_multiplier=0.4, lower_m
 
     max_iters = int((mask.size(1) * mask.size(2)) / 4)
 
-    #mask = mask.squeeze(0)
+    # mask = mask.squeeze(0)
 
     for _ in range(max_iters):
-        dilated_mask = (nnF.conv2d(mask.float().unsqueeze(0), kernel, padding=1)
+        dilated_mask = (tnnfunc.conv2d(mask.float().unsqueeze(0), kernel, padding=1)
                         .squeeze().bool())
 
         # Mask update: keep pixels within threshold and add to current mask
@@ -540,6 +556,7 @@ def magic_wand_mask_selection_faster(image_tensor, upper_multiplier=0.4, lower_m
 
     return mask.unsqueeze(0)
 
+
 class RandomGreyscale(torch.nn.Module):
     """Monochromes given image with a given probability.
     If the image is torch Tensor, it is expected
@@ -553,9 +570,9 @@ class RandomGreyscale(torch.nn.Module):
     def __init__(self, p=0.5):
         super().__init__()
         self.p = p
-        self.transform = T.Compose([
-            T.Grayscale(num_output_channels=3),  # Convert to grayscale with 3 channels
-            T.ToTensor()  # Convert PIL image to tensor
+        self.transform = tvtf.Compose([
+            tvtf.Grayscale(num_output_channels=3),  # Convert to grayscale with 3 channels
+            tvtf.ToTensor()  # Convert PIL image to tensor
         ])
 
     def forward(self, img):
@@ -579,8 +596,117 @@ class RandomGreyscale(torch.nn.Module):
         return f"{self.__class__.__name__}(p={self.p})"
 
 
-def histogram_equalization_lab(image):
+class HistogramEqualizationHSV(torch.nn.Module):
+    """
+    Applies histogram equalization to the saturation channel (HSV) of a given image.
+    Works for both PIL images and tensors.
 
+    Args:None
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.to_tensor = ToTensor()
+        self.to_pil = ToPILImage()
+
+    @staticmethod
+    def histogram_equalization_hsv_s(image):
+        """
+        Perform histogram equalization on the saturation channel of the HSV color space.
+        """
+        try:
+
+            image_np = np.array(image)  # Convert PIL image to NumPy array
+
+            hsv = cv2.cvtColor(image_np, cv2.COLOR_BGR2HSV)  # Convert to HSV color space
+            h, s, v = cv2.split(hsv)  # Split into H, S, V channels
+
+            s_eq = cv2.equalizeHist(s)  # Equalize the S channel
+            hsv_eq = cv2.merge((h, s_eq, v))  # Merge back into HSV
+
+            image_equalized = cv2.cvtColor(hsv_eq, cv2.COLOR_HSV2BGR)  # Convert back to BGR
+
+            return Image.fromarray(image_equalized)  # Convert NumPy array to PIL image
+
+        except Exception:
+            return []
+
+    def forward(self, img):
+        """
+        Args:
+            img (PIL Image or Tensor): Image to be transformed.
+
+        Returns:
+            PIL Image or Tensor: Transformed image with histogram equalized saturation.
+        """
+        if isinstance(img, torch.Tensor):  # If input is a tensor
+            img = self.to_pil(img)  # Convert to PIL for processing
+
+        img_equalized = self.histogram_equalization_hsv_s(img)  # Apply histogram equalization
+
+        return self.to_tensor(img_equalized) if isinstance(img, torch.Tensor) else img_equalized
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}()"
+
+
+class CLAHETransformLAB(torch.nn.Module):
+    """
+    Applies CLAHE (Contrast Limited Adaptive Histogram Equalization) to the luminance channel (LAB) of a given image.
+    Works for both PIL images and tensors.
+
+    Args:
+        clip_limit (float): Threshold for contrast limiting. Default is 2.0.
+        tile_grid_size (tuple): Size of the grid for histogram equalization. Default is (16, 16).
+    """
+
+    def __init__(self, clip_limit=2.0, tile_grid_size=(16, 16)):
+        super().__init__()
+        self.clip_limit = clip_limit
+        self.tile_grid_size = tile_grid_size
+        self.to_tensor = ToTensor()
+        self.to_pil = ToPILImage()
+
+    def apply_clahe_lab(self, image):
+        """
+        Perform CLAHE on the luminance channel of the LAB color space.
+        """
+        image_np = np.array(image)  # Convert PIL image to NumPy array
+
+        # Convert to LAB color space
+        lab_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2LAB)
+        l, a, b = cv2.split(lab_image)  # Split into L, A, B channels
+
+        # Apply CLAHE to the L channel
+        clahe = cv2.createCLAHE(clipLimit=self.clip_limit, tileGridSize=self.tile_grid_size)
+        res = clahe.apply(l)
+
+        # Merge the channels back and convert to RGB
+        lab_image = cv2.merge((res, a, b))
+        image_clahe_rgb = cv2.cvtColor(lab_image, cv2.COLOR_LAB2RGB)
+
+        return Image.fromarray(image_clahe_rgb)  # Convert NumPy array to PIL image
+
+    def forward(self, img):
+        """
+        Args:
+            img (PIL Image or Tensor): Image to be transformed.
+
+        Returns:
+            PIL Image or Tensor: Transformed image with CLAHE applied to luminance.
+        """
+        if isinstance(img, torch.Tensor):  # If input is a tensor
+            img = self.to_pil(img)  # Convert to PIL for processing
+
+        img_clahe = self.apply_clahe_lab(img)  # Apply CLAHE transformation
+
+        return self.to_tensor(img_clahe) if isinstance(img, torch.Tensor) else img_clahe
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(clip_limit={self.clip_limit}, tile_grid_size={self.tile_grid_size})"
+
+
+def histogram_equalization_lab(image):
     image_np = np.array(image)
 
     lab = cv2.cvtColor(image_np, cv2.COLOR_BGR2Lab)
@@ -656,16 +782,15 @@ def apply_clahe_lab(image, clip_limit=2.0, tile_grid_size=(16, 16)):
     lab_image = cv2.cvtColor(image_np, cv2.COLOR_RGB2LAB)
 
     # Split into L, A, and B channels
-    L, A, B = cv2.split(lab_image)
+    l, a, b = cv2.split(lab_image)
 
     # Apply CLAHE to the L (luminance) channel
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
-    L = clahe.apply(L)
+    res = clahe.apply(l)
 
     # Merge the channels back and convert to RGB
-    lab_image = cv2.merge((L, A, B))
+    lab_image = cv2.merge((res, a, b))
     image_clahe_rgb = cv2.cvtColor(lab_image, cv2.COLOR_LAB2RGB)
 
     # Convert back to PIL Image
     return Image.fromarray(image_clahe_rgb)
-

@@ -9,7 +9,7 @@ from torchvision.transforms import InterpolationMode
 import pandas as pd
 
 from model.retina_classifier_networks import HandmadeGlaucomaClassifier
-from utils.retinaldata import get_image_bbox, pil_loader
+from utils.retinaldata import get_image_bbox, pil_loader, open_image
 
 parser = argparse.ArgumentParser(description='Test retina glaucoma detection')
 parser.add_argument("--pretrained", type=str,
@@ -17,23 +17,17 @@ parser.add_argument("--pretrained", type=str,
                     help="path to the checkpoint file")
 
 parser.add_argument("--image", type=str,
-                    default="training-data/retina-stuff-classifier/nerves_defined_output_1/1_left.jpg",
+                    #default="training-data/retina-stuff-classifier/nerves_defined_output_1/1_left.jpg",
+                    default="training-data/retina-stuff-classifier/nerves_defined_output/1171_left_cropped.jpg",
                     help="path to the image file")
 parser.add_argument("--out-result", type=str,
-                    default="training-data/retina-stuff-classifier/nerves_classify_output/1_left.csv",
+                    #default="training-data/retina-stuff-classifier/nerves_classify_output/1_left.csv",
+                    default="training-data/retina-stuff-classifier/nerves_classify_output/1171_left.csv",
                     help="path to the output result file")
 
 img_shapes = [576, 576, 3]
 load_mode = "RGB"
 data_labels_ordered = ['glaucoma', 'atrophy', 'valid_image']
-
-
-def open_image(image_path):
-    pil_image = pil_loader(image_path, load_mode)
-    img_bbox = get_image_bbox(pil_image)
-
-    pil_image = pil_image.crop(img_bbox)
-    return pil_image
 
 
 def main():
@@ -72,6 +66,12 @@ def main():
     output = classifier(tensor_image).squeeze(0)
 
     data = pd.DataFrame(output.detach().numpy().reshape(1, -1), columns=data_labels_ordered)
+    data = data.round(5)
+
+    '''for col in data.columns:
+        data[col] = data[col].apply(lambda x: f'{x:.40f}')'''
+
+    # pd.options.display.float_format = '{:.40f}'.format
     data.to_csv(args.out_result, index=False)
 
 if __name__ == '__main__':
